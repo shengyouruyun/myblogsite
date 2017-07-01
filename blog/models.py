@@ -3,12 +3,14 @@ from django.core.urlresolvers import reverse
 from django.db import models
 from django.utils import timezone
 from django.contrib.auth.models import User
+from taggit.managers import TaggableManager
 class PublishedManager(models.Manager):
 
 	def get_queryset(self):
 		return super(PublishedManager, self).get_queryset().filter(status='published')
 
 class Post(models.Model):
+	
 	STATUS_CHOICES = (
 						('draft', 'Draft'),
 						('published', 'Published'),)
@@ -31,7 +33,7 @@ class Post(models.Model):
 		return reverse('blog:post_details',
 						args=[self.slug])
 	#published = PublishedManager()
-
+	tags = TaggableManager()
 class Comment(models.Model):
 	post = models.ForeignKey(Post, related_name='comments')
 	name = models.CharField(max_length=80)

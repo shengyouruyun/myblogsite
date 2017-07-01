@@ -3,8 +3,16 @@ from .models import Post
 from .forms import EmailPostForm
 from django.core.paginator import Paginator, EmptyPage,PageNotAnInteger
 from django.core.mail import send_mail
-def post_list(request):
+from .models import Post, Comment
+from .forms import EmailPostForm, CommentForm
+from taggit.models import Tag 
+from django.db.models import Count
+def post_list(request, tag_slug=None):
 	all_posts = Post.objects.all()
+	tag = None
+	if tag_slug:
+		tag = get_object_or_404(Tag, slug=tag_slug)
+		all_posts = all_posts.filter(tags__in=[tag])
 	paginator = Paginator(all_posts, 3)
 	page = request.GET.get('page')
 	try:
@@ -15,19 +23,44 @@ def post_list(request):
 	except EmptyPage:
 		posts = paginator.page(paginator.num_pages)
 
-	return render(request, 'blog/post/list.html', {'page':page, 'posts':posts})
+	return render(request, 'blog/post/list.html', {'page':page, 'posts':posts,'tag':tag})
 
 
 
 def post_details(request, post):
 	post = get_object_or_404(Post, slug=post)
-	return render(request, 'blog/post/detail.html', {'post':post})
+	#list of activate comments for this post
+	# List of similar posts
+	post_tags_ids = post.tags.values_list('id', flat=True)
+	similar_posts = Post.objects.filter(tags__in=post_tags_ids).exclude(id=post.id)
+	similar_posts = similar_posts.annotate(same_tags=Count('tags')).order_by('-same_tags','-publish')[:4]
+	comments = post.comments.filter(active=True)
+	new_comment = None
+	if request.method == 'POST':
+		# a COMMENT WAS POSTED
+		params = request.POST
+		comment_form = CommentForm(params)
+		if comment_form.is_valid():
+			#create comment object but not save to db
+			new_comment = comment_form.save(commit=False)
+			#assige current post to the comment
+			new_comment.post = post
+			#save comment to the database
+			new_comment.save()
+	else:
+		comment_form = CommentForm()
+	return render(request, 'blog/post/detail.html',
+					 {'post':post, 'comments':comments,
+					  'comment_form':comment_form, 
+					  'new_comment':new_comment,
+					  'similar_posts': similar_posts})
 
 
 def post_share(request, post_id):
 	#retrive post by id
 
 	post = get_object_or_404(Post, id=post_id)
+	
 	sent = False
 	if request.method == 'POST':
 		#form was submitted
@@ -47,6 +80,9 @@ def post_share(request, post_id):
 
 	else:		
 		form = EmailPostForm()
+	
+
+
 	return render(request, 'blog/post/share.html', {'post':post, 'form':form, 'sent':sent})
 
 
