@@ -1,5 +1,7 @@
-{% extends "blog/base.html" %}
 
+
+{% extends "blog/base.html" %}
+{% load blog_tags %}
 {% block title %}My Blog{% endblock %}
 
 {% block content %}
@@ -19,18 +21,12 @@ Tags:
 {% if not forloop.last %}, {% endif %}
 {% endfor %}
 
-
-
-
 </p>
-
-
-
 
 
 <p class="date"> Published {{ post.publish }} by {{ post.author}}</p>
 
-<p>{{ post.body|truncatewords:30|linebreaks }}</p>
+<p>{{ post.body|markdown|truncatewords_html:30 }}</p>
 
 
 {% endfor %}
